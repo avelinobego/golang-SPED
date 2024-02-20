@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Avelino Bego
+// Copyright (C) 2024 Avelino Bego
 //
 // This file is part of SPED.
 //
@@ -15,26 +15,19 @@
 // You should have received a copy of the GNU General Public License
 // along with SPED.  If not, see <http://www.gnu.org/licenses/>.
 
-package qualicadastral
+package common
 
-import (
-	"fmt"
-	"os"
-)
+import "github.com/beevik/etree"
 
-func MakeFile(fileName string, lotes []Lote) {
-	// Abrir/criar o arquivo
-	f, err := os.Create(fileName)
-	defer func() {
-		e := f.Close()
-		if e != nil {
-			println(fmt.Errorf("error: %v", e))
-		}
-	}()
-	if err != nil {
-		panic(fmt.Sprintf("Erro ao criar arqivo %s", fileName))
-	}
-	for _, l := range lotes {
-		f.WriteString(fmt.Sprintln(l))
-	}
+type ESocial struct {
+	Root *etree.Element
+}
+
+func (es ESocial) Make() *etree.Document {
+	root := etree.NewElement("eSocial")
+	root.AddChild(es.Root)
+	doc := etree.NewDocument()
+	doc.CreateProcInst("xml", `version="1.0" encoding="UTF-8"`)
+	doc.AddChild(root)
+	return doc
 }

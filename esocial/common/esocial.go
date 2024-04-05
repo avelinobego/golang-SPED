@@ -17,17 +17,5 @@
 
 package common
 
-import "github.com/beevik/etree"
-
 type ESocial struct {
-	Root *etree.Element
-}
-
-func (es ESocial) Make() *etree.Document {
-	root := etree.NewElement("eSocial")
-	root.AddChild(es.Root)
-	doc := etree.NewDocument()
-	doc.CreateProcInst("xml", `version="1.0" encoding="UTF-8"`)
-	doc.AddChild(root)
-	return doc
 }

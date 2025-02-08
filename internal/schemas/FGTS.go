@@ -1,4 +1,4 @@
-package schemes
+package schemas
 
 // FGTS ...
 type FGTS struct {

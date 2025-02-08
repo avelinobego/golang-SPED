@@ -1,4 +1,4 @@
-package schemes
+package schemas
 
 import (
 	"encoding/xml"

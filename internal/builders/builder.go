@@ -1,41 +1,50 @@
 package builders
 
 import (
+	"fmt"
 	"reflect"
 )
 
-type Opts func(s any)
+type Opts func(s any) error
 
-func New[evento any](opts ...Opts) *evento {
+func New[evento any](opts ...Opts) (evt *evento, e error) {
 
-	var result evento
-
-	for _, f := range opts {
-		f(&result)
+	tipoGenerico := reflect.TypeOf((*evento)(nil)).Elem().Kind()
+	if tipoGenerico != reflect.Struct {
+		e = fmt.Errorf("o parâmetro genérico precisa ser do tipo struct e não %s", tipoGenerico)
+		return
 	}
 
-	return &result
+	var result evento
+	for _, f := range opts {
+		e = f(&result)
+		if e != nil {
+			return
+		}
+	}
+	evt = &result
+	return
 }
 
 func With(name string, value any) Opts {
-	return func(s any) {
+	return func(s any) (e error) {
 		t := reflect.ValueOf(s).Elem()
 		f := t.FieldByName(name)
 
 		if !f.IsValid() {
-			panic("propriedade inválida")
-		}
-
-		if !f.CanSet() {
-			panic("não posso atribir à propriedade")
-		}
-
-		v := reflect.ValueOf(value)
-		if f.Kind() == v.Kind() {
-			f.Set(v)
+			e = fmt.Errorf("propriedade inválida: %s", name)
+		} else if !f.CanSet() {
+			e = fmt.Errorf("não posso atribir à propriedade: %s", name)
 		} else {
-			panic("tipos incompatíveis")
+			inputValue := reflect.ValueOf(value)
+			if f.Type() == inputValue.Type() {
+				f.Set(inputValue)
+			} else {
+				e = fmt.Errorf("tipos incompatíveis: %s esperava %s mas recebeu %s em %s", name, f.Type(), inputValue.Type(), t.Type().Name())
+			}
 		}
 
+		return
 	}
+
 }

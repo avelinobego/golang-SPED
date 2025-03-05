@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -18,12 +19,18 @@ func mustStartPostgresContainer() (func(context.Context) error, error) {
 		dbUser = "user"
 	)
 
+	dir, _ := os.Getwd()
+
+	log.Println("===>", dir)
+
 	dbContainer, err := postgres.Run(
 		context.Background(),
 		"postgres:latest",
 		postgres.WithDatabase(dbName),
 		postgres.WithUsername(dbUser),
 		postgres.WithPassword(dbPwd),
+		postgres.WithInitScripts("../../resources/scripts/esocial-2025-02-19T16_27_29.sql",
+			"../tests/scripts/insert_empregador.sql"),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
 				WithOccurrence(2).
@@ -97,4 +104,38 @@ func TestClose(t *testing.T) {
 	if srv.Close() != nil {
 		t.Fatalf("expected Close() to return nil")
 	}
+}
+
+type Empresa struct {
+	Id            int64
+	Identificador int64
+	Nome          string
+	Razao         string
+}
+
+func TestGetCompany(t *testing.T) {
+	srv := New()
+	db := srv.Db()
+
+	chave := Empresa{
+		Id:            1,
+		Identificador: 84349819000159,
+		Nome:          "Tânia e Nathan Filmagens ME",
+		Razao:         "Tânia e Nathan Filmagens ME",
+	}
+
+	rows, err := db.NamedQuery("select * from public.empregador where id=:id", chave)
+	if err != nil {
+		log.Fatalf("erro em obter dados %v\n", err)
+	}
+
+	emp := Empresa{}
+	for rows.Next() {
+		rows.StructScan(&emp)
+	}
+
+	if emp != chave {
+		log.Fatalf("fail check named query. Expected %#v found %#v", chave, emp)
+	}
+
 }

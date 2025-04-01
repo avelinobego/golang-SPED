@@ -1,18 +1,11 @@
 package utils
 
-import (
-	"log"
-	"unicode"
-	"unicode/utf8"
-)
+import "unicode"
 
 func UnCapitalize(text string) string {
-
-	r, size := utf8.DecodeRuneInString(text)
-	if r == utf8.RuneError {
-		log.Printf(`erro ao decapitalizar: "%v"`, r)
-		return text
-	}
-	return string(unicode.ToLower(r)) + text[size:]
+	result := make([]byte, 0)
+	result = append(result, byte(unicode.ToLower(rune(text[0]))))
+	result = append(result, text[1:]...)
+	return string(result)
 
 }

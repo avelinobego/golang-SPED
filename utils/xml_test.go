@@ -1,58 +1,54 @@
 package utils_test
 
 import (
-	"fmt"
+	"encoding/xml"
+	"log"
 	"sped/utils"
-	"strings"
 	"testing"
 )
 
 type IdeEvento struct {
-	Id int
+	Id_  int
+	Nome string
 }
 
 type EvtInfoEmpregador struct {
-	TpAmb int
-	Ide   *IdeEvento
+	TpAmb_ int
+	Ide    *IdeEvento
 }
 
-type ESocial[T any] struct {
-	Evento *T
-}
-
-func CleanBetween(initial string, start string, end string) string {
-	result := strings.Builder{}
-	include := true
-	for _, v := range initial {
-		if string(v) == start {
-			include = false
-		}
-		if include {
-			result.WriteRune(v)
-		}
-		if string(v) == end {
-			include = true
-		}
-	}
-
-	return result.String()
+type ESocial struct {
+	Ns_    string
+	Id_    int
+	Nome_  string
+	Evento any
 }
 
 func TestCustomXml(t *testing.T) {
 
-	evt := EvtInfoEmpregador{
-		TpAmb: 8,
-		Ide: &IdeEvento{
-			Id: 16944301890,
-		},
+	idevt := &IdeEvento{
+		Id_:  16944301890,
+		Nome: "Avelino",
 	}
 
-	value := &ESocial[EvtInfoEmpregador]{
-		Evento: &evt,
+	evt := &EvtInfoEmpregador{
+		TpAmb_: 8,
+		Ide:    idevt,
 	}
 
-	if v, e := utils.ToXml(value); e == nil {
-		fmt.Println(v)
+	value := &ESocial{
+		Ns_:    "http://www.esocial.gov.br/schema/lote/eventos/envio/v1",
+		Id_:    1,
+		Nome_:  "Avelino",
+		Evento: evt,
+	}
+
+	decoded := utils.DecodeStruct(value)
+
+	if v, e := xml.Marshal(decoded); e == nil {
+		t.Logf("\n%s", v)
+	} else {
+		log.Fatal(e)
 	}
 
 }

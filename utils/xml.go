@@ -3,112 +3,133 @@ package utils
 import (
 	"encoding/xml"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 )
 
-type xmlValue struct {
-	RootName string
-	Value    any
-}
+func DecodeStruct(input any) any {
 
-func ToXml(value any) (string, error) {
-	temp := xmlValue{
-		Value: value,
+	if isNil(input) {
+		log.Println("null value")
+		return input
 	}
 
-	result, err := xml.Marshal(temp)
-	if err != nil {
-		return "", err
-	}
-	return string(result), nil
-}
+	sourceValueType := getRawType(reflect.TypeOf(input))
+	sourceValueName := removeGeneric(sourceValueType.Name())
 
-func (xmlv xmlValue) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	return decodeStruct(e, xmlv)
-}
-
-func decodeStruct(e *xml.Encoder, input xmlValue) error {
-	originalValue := reflect.ValueOf(input.Value)
-	if originalValue.Kind() == reflect.Pointer {
-		originalValue = originalValue.Elem()
+	if sourceValueType.Kind() != reflect.Struct {
+		return input
 	}
 
-	var fields []reflect.StructField
-	fields = append(fields, reflect.StructField{
-		Name: "XMLName",
-		Type: reflect.TypeOf(xml.Name{}),
-	},
-	)
+	sourceValue := getRawValue(input)
+	// Criando a struct destino
+	var destFields []reflect.StructField
 
-	originaType := getType(reflect.TypeOf(input.Value))
-
-	if originaType.Kind() != reflect.Struct {
-		return e.Encode(input.Value)
-	}
-
+	sourceFieldValuesMap := make(map[string]any)
 	//Definir outros campos
-	for i := range originaType.NumField() {
+	for i := range sourceValueType.NumField() {
 
-		tipo := getType(originaType.Field(i).Type)
+		sourceFieldName := sourceValueType.Field(i).Name
+		sourceFieldType := getRawType(sourceValueType.Field(i).Type)
+		sourceFieldValue := sourceValue.Field(i).Interface()
 
-		if tipo.Kind() == reflect.Struct {
+		if sourceFieldType.Kind() == reflect.Struct || sourceFieldType.Kind() == reflect.Interface {
+			sourceFieldValuesMap[sourceFieldName] = DecodeStruct(sourceFieldValue)
+		} else {
+			sourceFieldValuesMap[sourceFieldName] = sourceFieldValue
+		}
 
-			fields = append(fields, reflect.StructField{
-				Name: tipo.Name(),
-				Type: reflect.TypeOf(xmlValue{}),
-				Tag:  reflect.StructTag(fmt.Sprintf(`xml:"%s"`, UnCapitalize(CleanBetween(tipo.Name(), "[", "]")))),
-			},
-			)
+		fieldValueType := reflect.TypeOf(sourceFieldValuesMap[sourceFieldName])
+
+		if strings.HasSuffix(sourceFieldName, "_") {
+			if sourceFieldName == "Ns_" {
+				sourceFieldValuesMap["_nameSpace_"] = sourceValue.FieldByName(sourceFieldName).String()
+			} else {
+				attrName := sourceFieldName[:len(sourceFieldName)-1]
+				destFields = append(destFields, reflect.StructField{
+					Name: sourceFieldName,
+					Type: fieldValueType,
+					Tag: reflect.StructTag(fmt.Sprintf(`xml:"%s,attr"`,
+						UnCapitalize(attrName)),
+					),
+				},
+				)
+			}
 			continue
 		}
 
-		fields = append(fields, reflect.StructField{
-			Name: originaType.Field(i).Name,
-			Type: originaType.Field(i).Type,
-			Tag:  reflect.StructTag(fmt.Sprintf(`xml:"%s"`, UnCapitalize(originaType.Field(i).Name))),
+		destFields = append(destFields, reflect.StructField{
+			Name: sourceFieldName,
+			Type: fieldValueType,
 		},
 		)
 	}
 
 	// Criar um novo tipo de struct
-	newStructType := reflect.StructOf(fields)
-	newStruct := reflect.New(newStructType).Elem()
-
-	for i := range newStruct.NumField() {
-		if i == 0 {
-
-			newStruct.Field(i).Set(reflect.ValueOf(xml.Name{
-				Local: UnCapitalize(CleanBetween(originaType.Name(), "[", "]")),
-			}))
-			continue
-		}
-
-		originalIndex := i - 1
-
-		tipo := getType(newStruct.Field(i).Type())
-		if tipo.Kind() == reflect.Struct {
-			xmlValue := xmlValue{
-				Value: originalValue.Field(originalIndex).Interface(),
-			}
-			newStruct.Field(i).Set(reflect.ValueOf(xmlValue))
-			continue
-		}
-
-		newStruct.Field(i).Set(originalValue.Field(originalIndex))
-	}
-
-	return e.Encode(newStruct.Interface())
+	return newStruct(destFields, sourceValueName, sourceFieldValuesMap)
 
 }
 
-func getType(t reflect.Type) reflect.Type {
+func newStruct(
+	destFields []reflect.StructField,
+	sourceValueName string,
+	sourceFieldValuesMap map[string]any,
+) any {
+
+	_nameSpace, ok := sourceFieldValuesMap["_nameSpace_"]
+	tagString := `xml:"%s"`
+	if ok {
+		tagString = fmt.Sprintf(`xml:"%s %s"`, _nameSpace, UnCapitalize(sourceValueName))
+		delete(sourceFieldValuesMap, "_nameSpace_")
+	} else {
+		tagString = fmt.Sprintf(`xml:"%s"`, UnCapitalize(sourceValueName))
+
+	}
+
+	destFields = append(destFields, reflect.StructField{
+		Name: "XMLName",
+		Type: reflect.TypeFor[xml.Name](),
+		Tag:  reflect.StructTag(tagString),
+	})
+
+	destStructType := reflect.StructOf(destFields)
+	destStruct := reflect.New(destStructType).Elem()
+
+	for _, f := range destFields[:len(destFields)-1] {
+		destStruct.FieldByName(f.Name).Set(reflect.ValueOf(sourceFieldValuesMap[f.Name]))
+		delete(sourceFieldValuesMap, f.Name)
+	}
+
+	return destStruct.Interface()
+}
+
+func isNil(input any) bool {
+	result := reflect.ValueOf(input)
+	if result.Kind() == reflect.Pointer {
+		return result.IsNil()
+	}
+	return false
+}
+
+func getRawType(t reflect.Type) reflect.Type {
 	if t.Kind() == reflect.Pointer {
 		return t.Elem()
 	}
 	return t
 }
 
+func getRawValue(input any) reflect.Value {
+	result := reflect.ValueOf(input)
+	if result.Kind() == reflect.Pointer {
+		result = result.Elem()
+	}
+	return result
+}
+
 func removeGeneric(name string) string {
-	return strings.TrimLeft(strings.TrimRight(name, "]"), "[]")
+	if i := strings.Index(name, "["); i > -1 {
+		return name[:i]
+	}
+	return name
 }

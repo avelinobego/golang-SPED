@@ -9,16 +9,21 @@ import (
 )
 
 type Container struct {
-	Id     tipos.Id   `xml:"id,attr"`
-	Comeco tipos.Data `xml:"dtIni"`
-	Fim    tipos.Data `xml:"dtFim"`
+	XMLName xml.Name
+	Id      tipos.Id   `xml:"id,attr"`
+	Comeco  tipos.Data `xml:"dtIni"`
+	Fim     tipos.Data `xml:"dtFim"`
 }
 
 func TestFormat(t *testing.T) {
-	comeco := tipos.Data(time.Date(2000, time.December, 1, 0, 0, 0, 0, time.UTC))
-	fim := tipos.Data(time.Date(2030, time.December, 1, 0, 0, 0, 0, time.UTC))
+	comeco := tipos.Data(time.Date(2000, time.December, 1, 0, 0, 0, 0, time.Local))
+	fim := tipos.Data(time.Date(2030, time.December, 1, 0, 0, 0, 0, time.Local))
 
 	c := Container{
+		XMLName: xml.Name{
+			Local: "eSocial",
+			Space: "xpto",
+		},
 		Id:     tipos.Id{},
 		Comeco: comeco,
 		Fim:    fim,

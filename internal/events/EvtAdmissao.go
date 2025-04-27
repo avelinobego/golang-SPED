@@ -1,9 +1,10 @@
 package events
 
-import "encoding/xml"
+import "sped/internal/tipos"
 
 type EvtAdmissao struct {
-	XMLName xml.Name `xml:"evtAdmissao"`
-	Nome    string   `xml:"nome"`
-	Idade   int32    `xml:"idade"`
+	XMLName       struct{}                `xml:"evtAdmissao"`
+	IdeEvento     tipos.IdeEventoAdmissao `xml:"ideEvento"`
+	IdeEmpregador tipos.IdeEmpregador     `xml:"ideEmpregador"`
+	Trabalhador   tipos.Trabalhador       `xml:"trabalhador"`
 }

@@ -2,7 +2,7 @@ package tipos
 
 type Trabalhador struct {
 	XMLName    struct{}       `xml:"trabalhador"`
-	CpfTrab    uint32         `xml:"cpfTrab"`
+	CpfTrab    Cpf            `xml:"cpfTrab"`
 	NmTrab     string         `xml:"nmTrab"`
 	Sexo       string         `xml:"sexo"`
 	RacaCor    uint32         `xml:"racaCor"`
@@ -10,5 +10,4 @@ type Trabalhador struct {
 	GrauInstr  string         `xml:"grauInstr"`
 	NmSoc      string         `xml:"nmSoc"`
 	Nascimento TipoNascimento `xml:"nascimento"`
-	
 }
